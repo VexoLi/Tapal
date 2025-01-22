@@ -1,0 +1,17 @@
+# Ignorar entornos virtuales
+venv/
+*.pyc
+__pycache__/
+
+# Archivos de configuración
+*.env
+*.log
+
+# Configuración de IDEs
+.vscode/
+.idea/
+*.swp
+
+# Otros ignorados específicos
+.DS_Store
+Thumbs.db
