@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from backend.app.routes import users
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
