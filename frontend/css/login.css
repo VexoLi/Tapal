@@ -1,0 +1,130 @@
+/* Centrar el formulario en la pantalla */
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-image: url(/Tapal/frontend/assets/fondo.jpg);
+  background-size: cover; /* Asegura que el fondo cubra toda la página */
+  background-position: center; /* Centra la imagen */
+  background-repeat: no-repeat; /* Evita repeticiones de la imagen */
+  width: 100%; /* Asegura que ocupe el ancho completo */
+  height: 100%; /* Cubre toda la altura del viewport */
+}
+
+/* Estilo general del formulario */
+#form {
+  display: grid;
+  place-items: center;
+  width: 600px; /* Ampliar el ancho del formulario */
+  height: 500px; /* Ajustar altura para más espacio */
+  padding: 30px;
+  background-color: white;
+  box-shadow: 1px 1px 15px rgba(158, 158, 158, 0.5);
+  outline: 1px solid rgb(255, 254, 254);
+  border-radius: 12px;
+}
+
+#form-body {
+  position: relative;
+  width: 100%; /* Asegurar que los inputs ocupen todo el espacio */
+  max-width: 400px; /* Límite máximo para inputs */
+  margin: 0 auto;
+  margin-bottom: 50px;
+}
+
+/* Títulos de bienvenida */
+#welcome-lines {
+  text-align: center;
+  line-height: 1.5;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#welcome-line-1 {
+  color: #3e5f8a;
+  font-weight: 600;
+  font-size: 36px; /* Fuente más grande */
+  margin-bottom: 15px; /* Más espacio debajo del título */
+}
+
+/* Área de entradas */
+#input-area {
+  margin-top: 30px;
+}
+
+.form-inp {
+  margin-bottom: 20px; /* Más espacio entre inputs */
+  padding: 15px;
+  background: transparent;
+  border: 2px solid #bbdefb;
+  border-radius: 8px;
+}
+
+.form-inp input {
+  width: 100%; /* Ocupa todo el ancho del contenedor */
+  background: none;
+  font-size: 16px; /* Fuente más grande */
+  color: rgb(85, 84, 84);
+  border: none;
+  padding: 10px 0; /* Más espacio interno */
+}
+
+.form-inp input:focus {
+  outline: none;
+  border-bottom: 2px solid #7cc2fb; /* Color más visible en focus */
+}
+
+/* Botón de envío */
+#submit-button-cvr {
+  margin-top: 20px;
+}
+
+#submit-button {
+  width: 100%; /* Botón ocupa todo el ancho */
+  max-width: 400px; /* Límite máximo para evitar que sea muy ancho */
+  color: #ffffff;
+  background-color: #7cc2fb;
+  font-weight: bold;
+  font-size: 16px; /* Texto más grande */
+  padding: 16px 20px; /* Más altura y espacio interno */
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+
+#submit-button:hover {
+  background-color: #3e5f8a;
+  color: #f9f9f9;
+}
+
+/* Barra decorativa */
+#bar {
+  position: absolute;
+  left: 50%;
+  bottom: -40px;
+  width: 40px; /* Barra más ancha */
+  height: 10px; /* Barra más alta */
+  margin-left: -20px; /* Centramos según el nuevo tamaño */
+  background-color: #bbdefb;
+  border-radius: 10px;
+}
+
+#bar:before,
+#bar:after {
+  content: "";
+  position: absolute;
+  width: 12px; /* Tamaño ajustado de los círculos */
+  height: 12px;
+  background-color: #fafafa;
+  border-radius: 50%;
+}
+
+#bar:before {
+  right: -25px; /* Más separación del círculo */
+}
+
+#bar:after {
+  right: -50px; /* Más separación del círculo */
+}
