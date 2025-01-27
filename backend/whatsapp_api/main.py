@@ -7,11 +7,8 @@ from fastapi import Depends
 app = FastAPI()
 
 @app.get("/")
-def read_root():
-    return {"message": "API de mensajería activa"}
-
-
-app = FastAPI()
+async def root():
+    return {"message": "API de WhatsApp funcionando correctamente"}
 
 # Autenticación
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -39,5 +36,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": user["username"], "token_type": "bearer"}
 
 @app.get("/llistaamics")
-async def llistaamics(token: str = Depends(oauth2_scheme)):
-    return [{"username": user["username"]} for user in fake_users_db.values()]
+async def llistaamics():
+    # Datos de ejemplo (puedes conectar esto a tu base de datos más adelante)
+    fake_users = [
+        {"fullname": "Joan Vicnes", "username": "jvicnes"},
+        {"fullname": "Maria Lopez", "username": "mlopez"},
+        {"fullname": "Carlos Sanchez", "username": "csanchez"},
+    ]
+    return fake_users
