@@ -1,4 +1,7 @@
 import pymysql.cursors
+from sqlalchemy.orm import Session
+from app.models import User
+from passlib.context import CryptContext
 
 class UsuarisClase:
     def conecta(self):
@@ -59,3 +62,15 @@ class UsuarisClase:
         except pymysql.MySQLError as e:
             self.db.rollback()
             return f"Error al eliminar usuario: {e}"
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def create_test_users(db: Session):
+    users = [
+        {"username": "user1", "hashed_password": pwd_context.hash("123456")},
+        {"username": "user2", "hashed_password": pwd_context.hash("123456")},
+        {"username": "user3", "hashed_password": pwd_context.hash("123456")},
+    ]
+    for user in users:
+        db.add(User(**user))
+    db.commit()

@@ -1,17 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from backend.whatsapp_api.database import get_db
+from app.models import UsuariClase
 
 router = APIRouter()
 
-# Mock data per a usuaris
-usuaris = [
-    {"id": 1, "username": "user1", "password": "123456"},
-    {"id": 2, "username": "user2", "password": "123456"},
-    {"id": 3, "username": "user3", "password": "123456"}
-]
-
-@router.get("/llistaamics")
-def get_llista_amics():
-    """
-    Retorna tots els usuaris de la classe.
-    """
-    return {"amics": usuaris}
+@router.get("/llistaamics", summary="Listar todos los usuarios")
+def listar_usuarios(db: Session = Depends(get_db)):
+    usuarios = db.query(UsuariClase).all()
+    return {"usuarios": [{"id": u.id, "username": u.username, "password": u.password} for u in usuarios]}
