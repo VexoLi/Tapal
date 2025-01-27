@@ -6,6 +6,7 @@ from fastapi import Depends
 
 app = FastAPI()
 
+
 # Registrar el router de autenticación
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 
