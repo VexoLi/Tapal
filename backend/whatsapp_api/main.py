@@ -47,3 +47,7 @@ async def llistaamics():
         {"fullname": "Carlos Sanchez", "username": "csanchez"},
     ]
     return fake_users
+
+@app.get("/chat/{username}")
+async def chat(username: str):
+    return {"message": f"Bienvenido al chat con {username}"}
