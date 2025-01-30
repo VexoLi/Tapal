@@ -58,3 +58,47 @@ def modificar_grup(grup_id: int, modificacions: ModificarGrup, usuari_id: int):
                 grup["usuaris"] = modificacions.usuaris
             return {"missatge": "Grup modificat correctament", "grup": grup}
     raise HTTPException(status_code=404, detail="Grup no trobat.")
+
+@router.delete("/grups/{grup_id}/usuaris/{usuari_id}")
+def eliminar_usuari(grup_id: int, usuari_id: int, administrador_id: int):
+    """
+    Permet als administradors eliminar un usuari d'un grup.
+    """
+    for grup in grups:
+        if grup["id"] == grup_id:
+            if grup["administrador_id"] != administrador_id:
+                raise HTTPException(status_code=403, detail="No tens permís per eliminar usuaris d'aquest grup.")
+            if usuari_id not in grup["usuaris"]:
+                raise HTTPException(status_code=404, detail="Usuari no trobat en aquest grup.")
+            grup["usuaris"].remove(usuari_id)
+            return {"missatge": "Usuari eliminat del grup."}
+    raise HTTPException(status_code=404, detail="Grup no trobat.")
+
+@router.put("/grups/{grup_id}/administrador")
+def assignar_administrador(grup_id: int, nou_admin_id: int, usuari_id: int):
+    """
+    Permet als administradors assignar un nou administrador.
+    """
+    for grup in grups:
+        if grup["id"] == grup_id:
+            if grup["administrador_id"] != usuari_id:
+                raise HTTPException(status_code=403, detail="No tens permís per assignar administradors.")
+            if nou_admin_id not in grup["usuaris"]:
+                raise HTTPException(status_code=400, detail="El nou administrador ha de ser membre del grup.")
+            grup["administrador_id"] = nou_admin_id
+            return {"missatge": "Nou administrador assignat."}
+    raise HTTPException(status_code=404, detail="Grup no trobat.")
+
+@router.delete("/grups/{grup_id}/sortir")
+def sortir_grup(grup_id: int, usuari_id: int):
+    """
+    Permet a qualsevol usuari sortir d'un grup.
+    """
+    for grup in grups:
+        if grup["id"] == grup_id:
+            if usuari_id in grup["usuaris"]:
+                grup["usuaris"].remove(usuari_id)
+                return {"missatge": "Has sortit del grup."}
+            else:
+                raise HTTPException(status_code=404, detail="No formes part d'aquest grup.")
+    raise HTTPException(status_code=404, detail="Grup no trobat.")
