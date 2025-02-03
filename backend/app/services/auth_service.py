@@ -1,6 +1,9 @@
 from fastapi import HTTPException
 import hashlib
 from app.models import UsuarisClase
+from app.config import settings
+from jose import jwt
+from datetime import datetime, timedelta
 
 # Función para verificar la contraseña
 def verificar_password(password, hash_almacenado):
@@ -41,14 +44,25 @@ def autenticar_usuario(username, password_introducido):
         db = UsuarisClase()
         user = db.buscaUsuario(username)
 
+        print(f"Usuario encontrado: {user}")  # Debug
+
         if not user:
             raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
         # Verificar la contraseña
-        if not verificar_password(password_introducido, user['password']):
+        is_password_correct = verificar_password(password_introducido, user["password"])
+        print(f"¿Contraseña correcta?: {is_password_correct}")  # Debug
+
+        if not is_password_correct:
             raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-        return "Inicio de sesión exitoso"
+        print(f"Usuario autenticado con éxito: {user['id']}, {user['username']}")  # Debug
+
+        return {
+            "id": user["id"],
+            "username": user["username"]
+        }  # Devolvemos el id y username en vez de solo un mensaje
+
     except Exception as e:
         print(f"[ERROR] Error al autenticar usuario: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
