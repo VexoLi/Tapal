@@ -5,7 +5,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-image: url(/Tapal/frontend/assets/fondo.jpg);
+  background-image: url(/frontend/assets/fondo.jpg);
   background-size: cover; /* Asegura que el fondo cubra toda la página */
   background-position: center; /* Centra la imagen */
   background-repeat: no-repeat; /* Evita repeticiones de la imagen */

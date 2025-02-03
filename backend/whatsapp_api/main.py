@@ -1,14 +1,18 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from app.routes import groups
 from app.routes.auth import router as auth_router
+from app.config import settings
+from app.routes.users import router as users_router
+
+
 
 app = FastAPI()
-app.include_router(groups.router)
 
-# Registrar el router de autenticación
+
+# Registrar routers
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(users_router, prefix="/users", tags=["Users"]) 
 
 @app.get("/")
 async def root():
@@ -48,7 +52,3 @@ async def llistaamics():
         {"fullname": "Carlos Sanchez", "username": "csanchez"},
     ]
     return fake_users
-
-@app.get("/chat/{username}")
-async def chat(username: str):
-    return {"message": f"Bienvenido al chat con {username}"}

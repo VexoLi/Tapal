@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
 from app.services.auth_service import autenticar_usuario
+from app.config import settings
 
 router = APIRouter()
 
@@ -9,15 +12,36 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+# Función para crear un token JWT
+def create_access_token(data: dict, expires_delta: timedelta):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
 @router.post("/login")
 async def login(login_request: LoginRequest):
     try:
-        # Extraer datos del cuerpo de la solicitud
         username = login_request.username
         password = login_request.password
 
-        # Llamada al servicio de autenticación
-        mensaje = autenticar_usuario(username, password)
-        return {"message": mensaje}
+        # Autenticar usuario
+        user = autenticar_usuario(username, password)  # Ahora devuelve un diccionario con id y username
+
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+
+        # Crear token JWT
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user["username"], "user_id": user["id"]}, 
+            expires_delta=access_token_expires
+        )
+
+        return {"access_token": access_token, "token_type": "bearer"}
+
     except HTTPException as e:
         raise e
+    except Exception as e:
+        print(f"[ERROR] Error en el login: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")

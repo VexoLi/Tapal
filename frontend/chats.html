@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Simulation</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <header class="header">
+          <h1>ChatApp</h1>
+          <div class="search-bar">
+            <input
+              id="search-bar"
+              type="text"
+              placeholder="Search friends or groups..."
+            />
+          </div>
+          <!-- Logout Button -->
+          <div class="logout-container">
+            <button id="logout-button" class="logout-button">Logout</button>
+          </div>
+        </header>
+        <section class="menu">
+          <h2>Friends</h2>
+          <ul id="friends-list" class="list"></ul>
+          <h2>Groups</h2>
+          <ul id="groups-list" class="list"></ul>
+        </section>
+      </aside>
+
+      <!-- Chat Area -->
+      <main class="chat-area">
+        <div id="chat-placeholder" class="chat-placeholder">
+          <h2>Welcome to ChatApp</h2>
+          <p>Select a friend or group to start chatting.</p>
+        </div>
+        <div id="chat-box" class="chat-box hidden">
+          <div id="chat-header" class="chat-header"></div>
+          <div id="chat-messages" class="chat-messages"></div>
+          <div class="chat-input">
+            <input
+              id="message-input"
+              type="text"
+              placeholder="Type a message..."
+            />
+            <button id="send-button">Send</button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="js/Chat.js"></script>
+  </body>
+</html>
