@@ -15,7 +15,7 @@ class LoginRequest(BaseModel):
 # Función para crear un token JWT
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now() + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -31,14 +31,16 @@ async def login(login_request: LoginRequest):
         if not user:
             raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
 
-        # Crear token JWT
+        user_id = user["id"]  # Extraer el user_id correctamente
+
+        # Crear token JWT con el user_id
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["username"], "user_id": user["id"]}, 
+            data={"sub": user["username"], "user_id": user_id},
             expires_delta=access_token_expires
         )
 
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer", "user_id": user_id}
 
     except HTTPException as e:
         raise e

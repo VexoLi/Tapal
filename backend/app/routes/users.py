@@ -69,16 +69,42 @@ async def transferir_admin(group_id: int, new_admin_id: int, user: dict = Depend
 @router.delete("/grups/{group_id}/salir", tags=["Groups"])
 async def salir_grupo(group_id: int, user: dict = Depends(verify_token)):
     """
-    Permite a un usuario salir de un grupo.
+    Permite a un usuario salir de un grupo:
+    - Si es el único usuario, el grupo se elimina completamente.
+    - Si es el único admin pero hay más miembros, NO puede salir hasta asignar otro admin.
+    - Si hay otros administradores, simplemente puede salir sin problema.
     """
     user_id = user["user_id"]
     db = UsuarisClase()
-    resultado = db.salir_del_grupo(group_id, user_id)
+
+    # Obtener todos los miembros del grupo
+    miembros = db.obtener_miembros_grupo(group_id)
+
+    # ✅ CASO 1: Si el usuario es el único miembro, se elimina el grupo
+    if len(miembros) == 1 and miembros[0]["id"] == user_id:
+        db.eliminar_grupo(group_id)  # 🔥 Se elimina el grupo completamente
+        return {"message": "Grupo eliminado correctamente porque no tenía más miembros."}
+
+    # ✅ CASO 2: Si hay más miembros y el usuario es admin, verificar si hay otros admins
+    es_admin = db.es_admin(user_id, group_id)
+
+    if es_admin:
+        otros_admins = [m for m in miembros if m["is_admin"] and m["id"] != user_id]
+
+        if not otros_admins:  # ❌ No hay otros admins, evitar la salida
+            raise HTTPException(
+                status_code=400,
+                detail="No puedes salir del grupo porque eres el único administrador. Asigna otro admin antes de salir."
+            )
+
+    # ✅ CASO 3: Si hay otros admins o el usuario no es admin, puede salir sin problema
+    resultado = db.eliminar_miembro(group_id, user_id)
 
     if not resultado:
         raise HTTPException(status_code=500, detail="Error al salir del grupo")
 
-    return resultado
+    return {"message": "Has salido del grupo correctamente"}
+
 
 @router.put("/grups/{group_id}/editar-nombre", tags=["Groups"])
 async def editar_nombre_grupo(group_id: int, nuevo_nombre: str, user: dict = Depends(verify_token)):
@@ -205,44 +231,18 @@ async def enviar_mensaje_amigo(
 async def obtener_mensajes_amigo(
     friend_id: int,
     page: int = 1,
+    limit: int = 20,  # 🔥 Aquí recibimos el límite
     user: dict = Depends(verify_token)
 ):
-    """
-    Obtiene los 10 mensajes más recientes con un usuario.
-    Se pueden obtener mensajes más antiguos con paginación.
-    """
-    
-    if page < 1:
-        raise HTTPException(status_code=400, detail="El número de página debe ser 1 o mayor")
-    
+    print(f"🛠️ Recibido en el backend: page={page}, limit={limit}")  # 🛠️ DEBUG
+
     user_id = user["user_id"]
     db = UsuarisClase()
+    mensajes = db.obtener_mensajes(user_id, friend_id, page, limit)
 
-    # Obtener mensajes con paginación
-    mensajes = db.obtener_mensajes(user_id, friend_id, page)
+    return {"messages": mensajes, "has_more": len(mensajes) == limit}
 
-    return {"messages": mensajes}
 
-@router.get("/missatgesAmics", tags=["Messages"])
-async def obtener_mensajes_amigo(
-    friend_id: int,
-    page: int = 1,
-    user: dict = Depends(verify_token)
-):
-    """
-    Obtiene los 10 mensajes más recientes con un usuario.
-    Al abrir el chat, los mensajes enviados a este usuario se marcan como 'received'.
-    """
-    user_id = user["user_id"]
-    db = UsuarisClase()
-
-    # Obtener mensajes con paginación
-    mensajes = db.obtener_mensajes(user_id, friend_id, page)
-
-    # Marcar mensajes como 'received' al abrir el chat
-    db.actualizar_estado_mensajes(user_id, friend_id, "received")
-
-    return {"messages": mensajes}
 
 
 @router.put("/check", tags=["Messages"])
@@ -264,22 +264,20 @@ async def marcar_mensajes_como_leidos(friend_id: int, user: dict = Depends(verif
 async def obtener_mensajes_grupo(
     group_id: int,
     page: int = 1,
+    limit: int = 20,
     user: dict = Depends(verify_token)
 ):
-    """
-    Obtiene los 10 mensajes más recientes de un grupo con paginación.
-    """
     user_id = user["user_id"]
     db = UsuarisClase()
 
-    # Verificar si el usuario es miembro del grupo
     if not db.es_miembro(user_id, group_id):
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
 
-    # Obtener mensajes
-    mensajes = db.obtener_mensajes_grupo(group_id, page)
+    mensajes = db.obtener_mensajes_grupo(group_id, page, limit)
 
-    return {"messages": mensajes}
+    return {"messages": mensajes, "has_more": len(mensajes) == limit}
+
+
 
 @router.post("/missatgesgrup", tags=["Group Messages"])
 async def enviar_mensaje_grupo(
@@ -346,6 +344,65 @@ async def obtener_mensajes_no_llegits(user: dict = Depends(verify_token)):
 
     return mensajes_no_llegits
 
+@router.get("/grups/{group_id}/usuarios-disponibles", tags=["Groups"])
+async def obtener_usuarios_disponibles(group_id: int, user: dict = Depends(verify_token)):
+    """
+    Devuelve la lista de usuarios que NO están en el grupo, para poder agregarlos.
+    """
+    db = UsuarisClase()
+    
+    # Verificar si el usuario es administrador del grupo
+    if not db.es_admin(user["user_id"], group_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para agregar usuarios.")
+
+    usuarios_disponibles = db.obtener_usuarios_fuera_del_grupo(group_id)
+    return {"available_users": usuarios_disponibles}
+
+@router.get("/grups/{group_id}/usuarios", tags=["Groups"])
+async def obtener_usuarios_grupo(group_id: int, user: dict = Depends(verify_token)):
+    """
+    Devuelve una lista de usuarios dentro de un grupo, incluyendo si son administradores.
+    """
+    user_id = user["user_id"]
+    db = UsuarisClase()
+
+    # Verificar si el usuario es miembro del grupo
+    if not db.es_miembro(user_id, group_id):
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+
+    # Obtener la lista de usuarios del grupo
+    usuarios = db.obtener_miembros_grupo(group_id)
+    return {"users": usuarios}
+
+
+@router.get("/grups/{group_id}/no-admins", tags=["Groups"])
+async def obtener_no_admins(group_id: int, user: dict = Depends(verify_token)):
+    """
+    Devuelve los miembros de un grupo que NO son administradores.
+    """
+    db = UsuarisClase()
+    
+    # Verificar si el usuario que solicita esto es administrador
+    if not db.es_admin(user["user_id"], group_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para ver esto.")
+
+    no_admins = db.obtener_no_admins_grupo(group_id)
+    return {"non_admin_members": no_admins}
+
+@router.get("/grups/{group_id}/es-admin", tags=["Groups"])
+async def verificar_admin(group_id: int, user: dict = Depends(verify_token)):
+    """
+    Devuelve si el usuario autenticado es administrador del grupo.
+    """
+    user_id = user["user_id"]
+    db = UsuarisClase()
+    
+    es_admin = db.es_admin(user_id, group_id)  # Verificamos en la base de datos
+
+    return {"is_admin": es_admin}
+
+
+
 @router.put("/grups/{group_id}/asignar-admin", tags=["Groups"])
 async def asignar_admin(group_id: int, nuevo_admin_id: int, user: dict = Depends(verify_token)):
     """
@@ -353,6 +410,8 @@ async def asignar_admin(group_id: int, nuevo_admin_id: int, user: dict = Depends
     """
     user_id = user["user_id"]
     db = UsuarisClase()
+    
+
 
     # Verificar si el usuario que ejecuta la acción es admin
     if not db.es_admin(user_id, group_id):

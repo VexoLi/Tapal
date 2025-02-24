@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Función para obtener la lista de compañeros
   async function fetchFriends() {
     try {
-      const token = localStorage.getItem("token"); // Asegúrate de tener el token
+      const token = sessionStorage.getItem("token"); // Asegúrate de tener el token
       const response = await fetch("http://localhost:8000/llistaamics", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -95,7 +95,9 @@ const MostrarListaAmigos = () => {
     const fetchFriends = async () => {
       try {
         const response = await fetch("http://localhost:8000/llistaamics", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+          },
         });
         const data = await response.json();
         setFriends(data);
@@ -118,7 +120,9 @@ const MostrarListaAmigos = () => {
 
   return (
     <div className="min-h-screen p-6 bg-gray-100">
-      <h2 className="text-2xl font-bold text-center mb-4">Llista de companys</h2>
+      <h2 className="text-2xl font-bold text-center mb-4">
+        Llista de companys
+      </h2>
       <input
         type="text"
         id="searchInput"
@@ -132,7 +136,9 @@ const MostrarListaAmigos = () => {
             key={friend.username}
             className="p-4 bg-white shadow rounded flex justify-between items-center"
           >
-            <span>{friend.fullname} ({friend.username})</span>
+            <span>
+              {friend.fullname} ({friend.username})
+            </span>
             <button
               className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
               onClick={() => startChat(friend.username)}
@@ -147,4 +153,3 @@ const MostrarListaAmigos = () => {
 };
 
 export default MostrarListaAmigos;
-

@@ -5,8 +5,9 @@ class UsuarisClase:
         self.db = pymysql.connect(
             host="localhost",
             user="root",
-            password="",
+            password="1234",
             db="whatsapp2425",
+            port=3307,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
         )
@@ -53,6 +54,26 @@ class UsuarisClase:
         self.cursor.execute(sql, (group_id, user_id))
         self.db.commit()
         return True
+    
+    def eliminar_grupo(self, group_id):
+        """
+        Elimina un grupo y todos sus registros relacionados.
+        """
+        try:
+            # 🔹 Borrar miembros del grupo
+            sql_delete_members = "DELETE FROM group_members WHERE group_id = %s"
+            self.cursor.execute(sql_delete_members, (group_id,))
+
+            # 🔹 Borrar el grupo
+            sql_delete_group = "DELETE FROM `groups` WHERE id = %s"
+            self.cursor.execute(sql_delete_group, (group_id,))
+
+            self.db.commit()
+            return True
+        except pymysql.MySQLError as e:
+            print(f"[ERROR] Error al eliminar el grupo: {e}")
+            return False
+
         
     
     def obtener_grupos_por_usuario(self, user_id):
@@ -63,7 +84,7 @@ class UsuarisClase:
             sql = """
                 SELECT g.id, g.name, 
                     CASE WHEN gm.is_admin THEN true ELSE false END AS is_admin
-                FROM groups g
+                FROM `groups` g
                 JOIN group_members gm ON g.id = gm.group_id
                 WHERE gm.user_id = %s
             """
@@ -80,8 +101,8 @@ class UsuarisClase:
         """
         sql = """
             SELECT MIN(t1.id + 1) AS next_id
-            FROM groups t1
-            LEFT JOIN groups t2 ON t1.id + 1 = t2.id
+            FROM `groups` t1
+            LEFT JOIN `groups` t2 ON t1.id + 1 = t2.id
             WHERE t2.id IS NULL
         """
         self.cursor.execute(sql)
@@ -91,7 +112,7 @@ class UsuarisClase:
             return resultado["next_id"]
     
     # Si no hay huecos, usar el siguiente ID autoincremental
-        sql_max = "SELECT MAX(id) + 1 AS next_id FROM groups"
+        sql_max = "SELECT MAX(id) + 1 AS next_id FROM `groups`"
         self.cursor.execute(sql_max)
         resultado = self.cursor.fetchone()
         return resultado["next_id"] if resultado["next_id"] else 1  # Si no hay grupos, empezar desde 1
@@ -103,7 +124,7 @@ class UsuarisClase:
         try:
             group_id = self.obtener_id_disponible()
         
-            sql_grupo = "INSERT INTO groups (id, name, admin_id) VALUES (%s, %s, %s)"
+            sql_grupo = "INSERT INTO `groups` (id, name, admin_id) VALUES (%s, %s, %s)"
             self.cursor.execute(sql_grupo, (group_id, nombre_grupo, admin_id))
 
             sql_miembro = "INSERT INTO group_members (group_id, user_id, is_admin) VALUES (%s, %s, %s)"
@@ -127,7 +148,7 @@ class UsuarisClase:
             if not nuevo_admin:
                 return {"error": "El usuario no está en el grupo"}
 
-            sql_update_admin = "UPDATE groups SET admin_id = %s WHERE id = %s"
+            sql_update_admin = "UPDATE `groups` SET admin_id = %s WHERE id = %s"
             self.cursor.execute(sql_update_admin, (new_admin_id, group_id))
 
             sql_update_member = "UPDATE group_members SET is_admin = FALSE WHERE group_id = %s AND user_id = %s"
@@ -145,39 +166,45 @@ class UsuarisClase:
     def salir_del_grupo(self, group_id, user_id):
         """
         Permite a un usuario salir del grupo.
-        Si el usuario es el admin, transfiere el rol al usuario con ID más bajo.
-        Si es el último usuario, el grupo se elimina.
+        - Si es el único miembro, el grupo se elimina completamente.
+        - Si es el único admin pero hay más miembros, se le impide salir hasta transferir admin.
+        - Si hay más admins o no es admin, se le permite salir normalmente.
         """
         try:
-            sql_verificar_admin = "SELECT admin_id FROM groups WHERE id = %s"
-            self.cursor.execute(sql_verificar_admin, (group_id,))
-            grupo = self.cursor.fetchone()
+            # Contar cuántos miembros hay en el grupo
+            sql_count_members = "SELECT COUNT(*) as count FROM group_members WHERE group_id = %s"
+            self.cursor.execute(sql_count_members, (group_id,))
+            member_count = self.cursor.fetchone()["count"]
 
-            if not grupo:
-                return {"error": "El grupo no existe"}
+            # Si el usuario es el único miembro, eliminar el grupo completamente
+            if member_count == 1:
+                sql_delete_group = "DELETE FROM `groups` WHERE id = %s"
+                self.cursor.execute(sql_delete_group, (group_id,))
+                sql_delete_members = "DELETE FROM group_members WHERE group_id = %s"
+                self.cursor.execute(sql_delete_members, (group_id,))
+                self.db.commit()
+                return {"message": "Grupo eliminado completamente porque no quedaban miembros"}
 
+            # Contar cuántos administradores hay en el grupo
+            sql_count_admins = "SELECT COUNT(*) as count FROM group_members WHERE group_id = %s AND is_admin = 1"
+            self.cursor.execute(sql_count_admins, (group_id,))
+            admin_count = self.cursor.fetchone()["count"]
+
+            # Si el usuario es admin y es el único admin, pero hay más miembros, NO puede salir
+            if self.es_admin(user_id, group_id) and admin_count == 1:
+                return {"error": "No puedes salir del grupo porque eres el único administrador. Transfiere el admin antes de salir."}
+
+            # Si hay más admins o el usuario no es admin, se le permite salir
             sql_eliminar_miembro = "DELETE FROM group_members WHERE group_id = %s AND user_id = %s"
             self.cursor.execute(sql_eliminar_miembro, (group_id, user_id))
-
-            sql_contar_miembros = "SELECT user_id FROM group_members WHERE group_id = %s ORDER BY user_id ASC LIMIT 1"
-            self.cursor.execute(sql_contar_miembros, (group_id,))
-            nuevo_admin = self.cursor.fetchone()
-
-            if nuevo_admin:
-                # Si el usuario era admin, se asigna el nuevo admin
-                if grupo["admin_id"] == user_id:
-                    sql_actualizar_admin = "UPDATE groups SET admin_id = %s WHERE id = %s"
-                    self.cursor.execute(sql_actualizar_admin, (nuevo_admin["user_id"], group_id))
-            else:
-                # Si no hay miembros, se borra el grupo
-                sql_eliminar_grupo = "DELETE FROM groups WHERE id = %s"
-                self.cursor.execute(sql_eliminar_grupo, (group_id,))
-
             self.db.commit()
+
             return {"message": "Usuario ha salido del grupo correctamente"}
         except pymysql.MySQLError as e:
             print(f"[ERROR] Error al salir del grupo: {e}")
             return None
+
+
         
     def eliminar_miembro(self, group_id, user_id):
         """
@@ -196,10 +223,15 @@ class UsuarisClase:
     def es_admin(self, user_id, group_id):
         """
         Verifica si el usuario es administrador de un grupo.
+        Ahora revisa tanto en la tabla 'groups' como en 'group_members'.
         """
-        sql = "SELECT * FROM groups WHERE id = %s AND admin_id = %s"
+        sql = """
+            SELECT 1 FROM group_members 
+            WHERE group_id = %s AND user_id = %s AND is_admin = 1
+        """
         self.cursor.execute(sql, (group_id, user_id))
         return self.cursor.fetchone() is not None
+
 
     def es_miembro(self, user_id, group_id):
         """
@@ -236,20 +268,25 @@ class UsuarisClase:
             return False
 
 
-    def obtener_mensajes(self, user_id, friend_id, page):
+    def obtener_mensajes(self, user_id, friend_id, page, limit=20):
         """
         Obtiene los mensajes entre dos usuarios con paginación.
         """
-        offset = (page - 1) * 10  # Cada página muestra 10 mensajes
+        offset = (page - 1) * limit
         sql = """
             SELECT sender_id, receiver_id, content, timestamp
             FROM messages
-            WHERE (sender_id = %s AND receiver_id = %s) OR (sender_id = %s AND receiver_id = %s)
-            ORDER BY timestamp DESC
-            LIMIT 10 OFFSET %s
+            WHERE (sender_id = %s AND receiver_id = %s)
+            OR (sender_id = %s AND receiver_id = %s)
+            ORDER BY timestamp ASC  -- 🔥 Asegurar orden ascendente
+            LIMIT %s OFFSET %s
         """
-        self.cursor.execute(sql, (user_id, friend_id, friend_id, user_id, offset))
+        self.cursor.execute(sql, (user_id, friend_id, friend_id, user_id, limit, offset))
         return self.cursor.fetchall()
+
+
+
+
 
     def actualizar_estado_mensajes(self, user_id, friend_id, nuevo_estado):
         """
@@ -268,21 +305,24 @@ class UsuarisClase:
         self.db.commit()
         return True
 
-    def obtener_mensajes_grupo(self, group_id, page):
+    def obtener_mensajes_grupo(self, group_id, page, limit=20):
         """
         Obtiene los mensajes de un grupo con paginación.
         """
-        offset = (page - 1) * 10  # Cada página muestra 10 mensajes
+        offset = (page - 1) * limit
         sql = """
             SELECT m.sender_id, u.username AS sender_username, m.content, m.timestamp
             FROM messages m
             JOIN usuarisclase u ON m.sender_id = u.id
             WHERE m.group_id = %s
-            ORDER BY m.timestamp DESC
-            LIMIT 10 OFFSET %s
+            ORDER BY m.timestamp ASC  -- 🔥 Asegurar orden ascendente
+            LIMIT %s OFFSET %s
         """
-        self.cursor.execute(sql, (group_id, offset))
+        self.cursor.execute(sql, (group_id, limit, offset))
         return self.cursor.fetchall()
+
+
+
 
     def enviar_mensaje_grupo(self, user_id, group_id, content):
         """
@@ -392,8 +432,34 @@ class UsuarisClase:
         except pymysql.MySQLError as e:
             print(f"[ERROR] Error al asignar administrador: {e}")
             return False
-
         
+    def obtener_no_admins_grupo(self, group_id):
+        """
+        Obtiene los miembros del grupo que NO son administradores.
+        """
+        sql = """
+            SELECT u.id, u.username
+            FROM usuarisclase u
+            JOIN group_members gm ON u.id = gm.user_id
+            WHERE gm.group_id = %s AND gm.is_admin = FALSE
+        """
+        self.cursor.execute(sql, (group_id,))
+        return self.cursor.fetchall()
+    
+    def obtener_usuarios_fuera_del_grupo(self, group_id):
+        """
+        Obtiene los usuarios que NO están en un grupo.
+        """
+        sql = """
+            SELECT u.id, u.username
+            FROM usuarisclase u
+            WHERE u.id NOT IN (
+                SELECT gm.user_id FROM group_members gm WHERE gm.group_id = %s
+            )
+        """
+        self.cursor.execute(sql, (group_id,))
+        return self.cursor.fetchall()
+
         
     def __del__(self):
         """

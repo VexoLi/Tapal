@@ -19,11 +19,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
 
       if (response.ok) {
-        // 🚀 Guarda el token en localStorage correctamente
-        localStorage.setItem("token", data.access_token);
+        // 🚀 Guarda el token y el user_id en sessionStorage
+        sessionStorage.setItem("token", data.access_token);
+        sessionStorage.setItem("user_id", data.user_id); // Guardar el user_id
         console.log(
-          "✅ Token guardado en localStorage:",
-          localStorage.getItem("token")
+          "✅ Token guardado en sessionStorage:",
+          sessionStorage.getItem("token")
+        );
+        console.log(
+          "✅ User ID guardado en sessionStorage:",
+          sessionStorage.getItem("user_id")
         );
 
         // Redirigir al usuario a la página de chats
